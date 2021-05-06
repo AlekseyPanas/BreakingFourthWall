@@ -36,7 +36,7 @@ class Game:
         self.CUTSCENE_STRING = ""
 
         # Will the boss pause the game when dying
-        self.WILL_PAUSE = random.choice([True, False, False])
+        self.WILL_PAUSE = False if fourth_wall else random.choice([True])
 
         self.BOSS = Boss(-1, 1)
         self.PLY = Player(-1, 1)
