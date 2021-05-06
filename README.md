@@ -40,4 +40,4 @@ Additional features in mind:
 - Aleksey Panas
 
 ### Screenshots:
-![img]https://github.com/AlekseyPanas/BreakingFourthWall/blob/main/showcase.JPG?raw=true
+![img](https://github.com/AlekseyPanas/BreakingFourthWall/blob/main/showcase.JPG?raw=true)
