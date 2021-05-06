@@ -23,7 +23,7 @@ pygame.init()
 class Game:
     FRICTION = 0.99
 
-    def __init__(self, fourth_wall=False):
+    def __init__(self, fourth_wall=False, player_hp=None):
         self.RESET_GAME = False
 
         self.PAUSED = False
@@ -34,6 +34,9 @@ class Game:
 
         self.IS_CUTSCENE = False
         self.CUTSCENE_STRING = ""
+
+        # Will the boss pause the game when dying
+        self.WILL_PAUSE = random.choice([True, False, False])
 
         self.BOSS = Boss(-1, 1)
         self.PLY = Player(-1, 1)
@@ -77,16 +80,41 @@ class Game:
 
         self.bind_counter = 0
 
+        if player_hp is not None:
+            hp = player_hp
+            if hp < 500:
+                hp = 500
+            self.PLY.update_health(hp)
+
+    def cutscene_i1(self):
+        # Boss moves towards point
+        target = SIZE[0] / 2, SIZE[1] * .7
+
+        if not distance(target, self.BOSS.pos) < 30:
+            y = target[1] - self.BOSS.pos[1]
+            x = target[0] - self.BOSS.pos[0]
+            h = math.sqrt(y ** 2 + x ** 2)
+            y = (y / h)
+            x = (x / h)
+            self.BOSS.vel = (x, y)
+
+            self.BOSS.update_physics(screen, self)
+
+        if distance(target, self.BOSS.pos) < 30:
+            self.BOSS.vel = (0, 0)
+            return True
+        return False
+
     def run_game(self, screen):
         print(self.damage_accum)
         # Manages damage accumulation
         if self.damage_accum > 0:
-            self.damage_accum -= .6
+            self.damage_accum -= .3 if not self.PLY.is_mouse_bound else 1
         if self.damage_accum < 0:
             self.damage_accum = 0
-        if self.damage_accum > 170:
+        if self.damage_accum > 550:
             self.PLY.bind_mouse([random.randint(50, 550) for _ in range(2)])
-            self.bind_counter = 1000
+            self.bind_counter = 800
             self.damage_accum = 0
 
             self.BOSS.clear_dialogue()
@@ -103,21 +131,28 @@ class Game:
                 if not len(self.BOSS.dialogue_queue):
                     self.IS_CUTSCENE = False
 
+            elif self.CUTSCENE_STRING == "i_0":
+                self.CUTSCENE_2nd_DIALOGUE_FLAG = True
+                self.CUTSCENE_LASER = Laser(copy.copy(self.BOSS.pos), copy.copy(self.PAUSE.pos))
+                self.CUTSCENE_STRING = "i_-1"
+
+            elif self.CUTSCENE_STRING == "i_-1":
+                self.CUTSCENE_LASER.update(screen, self)
+                self.CUTSCENE_LASER.render(screen, self)
+
+                if self.cutscene_i1() and self.CUTSCENE_LASER.opacity <= 0:
+                    self.CUTSCENE_STRING = "i_-2"
+
+            elif self.CUTSCENE_STRING == "i_-2":
+                self.BOSS.add_dialogue("Whew, almost had me there!", 4, 25)
+                self.BOSS.add_dialogue("What? You thought you're the only one who can pause?", 4, 25)
+                self.BOSS.add_dialogue("Now Now, lets see what I can do here", 7, 25)
+                self.BOSS.add_dialogue("Oh! I got an idea", 6, 17)
+                self.CUTSCENE_STRING = "i_3"
+
             elif self.CUTSCENE_STRING == "i_1":
-                # Boss moves towards point
-                target = SIZE[0] / 2, SIZE[1] * .7
-
-                y = target[1] - self.BOSS.pos[1]
-                x = target[0] - self.BOSS.pos[0]
-                h = math.sqrt(y ** 2 + x ** 2)
-                y = (y / h)
-                x = (x / h)
-                self.BOSS.vel = (x, y)
-
-                self.BOSS.update_physics(screen, self)
-
-                if distance(target, self.BOSS.pos) < 20:
-                    self.BOSS.vel = (0, 0)
+                self.CUTSCENE_2nd_DIALOGUE_FLAG = False
+                if self.cutscene_i1():
                     self.CUTSCENE_STRING = "i_2"
 
             elif self.CUTSCENE_STRING == "i_2":
@@ -153,8 +188,12 @@ class Game:
                     self.CUTSCENE_STRING = "i_7"
 
             elif self.CUTSCENE_STRING == "i_7":
-                self.BOSS.add_dialogue("Careful not to restart! Mwahaha!!!", 8, 15)
-                self.BOSS.add_dialogue("Oh.. And no more pausing!", 7, 10)
+                if not self.CUTSCENE_2nd_DIALOGUE_FLAG:
+                    self.BOSS.add_dialogue("Careful not to restart! Mwahaha!!!", 8, 15)
+                    self.BOSS.add_dialogue("Oh.. And no more pausing!", 7, 10)
+                else:
+                    self.BOSS.add_dialogue("The restart button might make things a little more balanced", 5, 17)
+                    self.BOSS.add_dialogue("Alright, no more pausing for both of us.!", 6, 13)
                 self.CUTSCENE_STRING = "i_8"
 
             elif self.CUTSCENE_STRING == "i_8":
@@ -173,10 +212,16 @@ class Game:
                 self.PAUSED = False
                 self.UNPAUSABLE = True
                 self.IS_CUTSCENE = False
+        print(self.WILL_PAUSE)
 
         # Checks for Cutscene conditions
-        if not self.IS_CUTSCENE:
-            if self.PAUSED and self.BOSS.health / self.BOSS.full_health <= 0.5 and (not (self.WIN or self.LOSS)) and (not self.UNPAUSABLE):
+        if not self.IS_CUTSCENE and (not self.UNPAUSABLE):
+            if self.BOSS.health / self.BOSS.full_health <= 0.3 and self.WILL_PAUSE:
+                self.IS_CUTSCENE = True
+                self.PAUSED = True
+                self.CUTSCENE_STRING = "i_0"
+
+            elif self.PAUSED and self.BOSS.health / self.BOSS.full_health <= 0.6 and (not (self.WIN or self.LOSS)):
                 print("OMG")
                 self.IS_CUTSCENE = True
                 self.CUTSCENE_STRING = "i_1"
@@ -199,7 +244,7 @@ class Game:
                     elif (self.PAUSED or self.UNPAUSABLE) and self.RESTART.is_clicked(event.pos):
                         self.RESET_GAME = True
                         if self.UNPAUSABLE and (not (self.WIN or self.LOSS)):
-                            set_4th_wall_toggle(True)
+                            set_4th_wall_toggle(True, self.PLY.health)
 
             for event in rem:
                 if event in events:
@@ -910,9 +955,14 @@ events = []
 ticks = 0
 
 set_4th_wall = False
-def set_4th_wall_toggle(bool):
-    global set_4th_wall
+player_hp_store = 0
+
+
+def set_4th_wall_toggle(bool, player_hp):
+    global set_4th_wall, player_hp_store
     set_4th_wall = bool
+    player_hp_store = player_hp
+
 
 while running:
     screen.fill((255, 255, 255))
@@ -929,9 +979,12 @@ while running:
     ticks += 1
 
     if GAME.RESET_GAME:
-        GAME = Game(set_4th_wall)
         if set_4th_wall:
+            GAME = Game(set_4th_wall, player_hp_store)
             set_4th_wall = False
+
+        else:
+            GAME = Game()
 
     # sets fps to a variable. can be set to caption any time for testing.
     last_fps_show += 1
