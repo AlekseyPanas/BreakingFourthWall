@@ -5,20 +5,6 @@ import random
 import time
 pygame.init()
 
-# Rework sprite management     DONE
-# Test inflates                DONE
-# Add health text              DONE
-# Add damage inflates          DONE
-# Add collision logic          DONE
-# Add slashes                  DONE
-# Add pause button             DONE
-# Add pause menu with restart and quit buttons    DONE
-# Add gameover restart screen  DONE
-# Add dialogue framework
-
-# Add restart button knockout cutscene
-# Add restart button game logic
-
 
 class Game:
     FRICTION = 0.99
@@ -36,7 +22,7 @@ class Game:
         self.CUTSCENE_STRING = ""
 
         # Will the boss pause the game when dying
-        self.WILL_PAUSE = False if fourth_wall else random.choice([True])
+        self.WILL_PAUSE = False if fourth_wall else random.choice([True, False, False, False])
 
         self.BOSS = Boss(-1, 1)
         self.PLY = Player(-1, 1)
